@@ -72,11 +72,11 @@ with tf.device(params.GPUdevice):
 		ImWarpBatch,pBatch = graphST.cSTrecur_depth4_CCFF(imageRawBatch,pInitBatch,args.recurN,[4,8,48],0.01,params)
 		outputBatch = graph.buildCNN(ImWarpBatch,[3],0.03,params)
 	# define loss/optimizer/summaries
-	imageSummaries = tf.merge_all_summaries()
+	imageSummaries = tf.summary.merge_all()
 	labelBatch = tf.placeholder(tf.float32,shape=[None,10],name="label")
-	softmaxLoss = tf.nn.softmax_cross_entropy_with_logits(outputBatch,labelBatch)
+	softmaxLoss = tf.nn.softmax_cross_entropy_with_logits(logits=outputBatch,labels=labelBatch)
 	loss = tf.reduce_mean(softmaxLoss)
-	lossSummary = tf.scalar_summary("training loss",loss)
+	lossSummary = tf.summary.scalar("training loss",loss)
 	learningRate = tf.placeholder(tf.float32,shape=[2])
 	trainStep = graph.setOptimizer(loss,learningRate,params)
 	softmax = tf.nn.softmax(outputBatch)
@@ -90,13 +90,13 @@ tfSaver,tfSaverInterm,tfSaverFinal = tf.train.Saver(max_to_keep=10), \
 									 tf.train.Saver(max_to_keep=10), \
 									 tf.train.Saver()
 testErrorPH = tf.placeholder(tf.float32,shape=[])
-testErrorSummary = tf.scalar_summary("test error",testErrorPH)
-tfSummaryWriter = tf.train.SummaryWriter("summary_{1}/{0}".format(saveFname,suffix))
+testErrorSummary = tf.summary.scalar("test error",testErrorPH)
+tfSummaryWriter = tf.summary.FileWriter("summary_{1}/{0}".format(saveFname,suffix))
 resumeIterN = 0
 maxIterN = 100000
 with tf.Session(config=tfConfig) as sess:
 	if resumeIterN==0:
-		sess.run(tf.initialize_all_variables())
+		sess.run(tf.global_variables_initializer())
 	else:
 		tfSaver.restore(sess,"models_{2}/{0}_it{1}k.ckpt".format(saveFname,resumeIterN//1000,suffix))
 		print("resuming from iteration {0}...".format(resumeIterN))

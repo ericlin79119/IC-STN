@@ -25,7 +25,7 @@ def compose(pBatch,dpBatch,params,name=None):
 	with tf.name_scope("compose"):
 		pMtrxBatch = vec2mtrxBatch(pBatch,params)
 		dpMtrxBatch = vec2mtrxBatch(dpBatch,params)
-		pMtrxNewBatch = tf.batch_matmul(dpMtrxBatch,pMtrxBatch)
+		pMtrxNewBatch = tf.matmul(dpMtrxBatch,pMtrxBatch)
 		pMtrxNewBatch = pMtrxNewBatch/tf.slice(pMtrxNewBatch,[0,2,2],[-1,1,1])
 		pNewBatch = mtrx2vecBatch(pMtrxNewBatch,params)
 		pNewBatch = tf.identity(pNewBatch,name=name)
@@ -47,23 +47,23 @@ def vec2mtrxBatch(pBatch,params):
 		O = tf.zeros([batchSize])
 		I = tf.ones([batchSize])
 		if params.warpType=="translation":
-			tx,ty = tf.unpack(pBatch,axis=1)
-			pMtrxBatch = tf.transpose(tf.pack([[I,O,tx],
+			tx,ty = tf.unstack(pBatch,axis=1)
+			pMtrxBatch = tf.transpose(tf.stack([[I,O,tx],
 											   [O,I,ty],
 											   [O,O,I]]),perm=[2,0,1])
 		elif params.warpType=="similarity":
-			pc,ps,tx,ty = tf.unpack(pBatch,axis=1)
-			pMtrxBatch = tf.transpose(tf.pack([[I+pc,-ps,tx],
+			pc,ps,tx,ty = tf.unstack(pBatch,axis=1)
+			pMtrxBatch = tf.transpose(tf.stack([[I+pc,-ps,tx],
 											   [ps,I+pc,ty],
 											   [O,O,I]]),perm=[2,0,1])
 		elif params.warpType=="affine":
-			p1,p2,p3,p4,p5,p6 = tf.unpack(pBatch,axis=1)
-			pMtrxBatch = tf.transpose(tf.pack([[I+p1,p2,p3],
+			p1,p2,p3,p4,p5,p6 = tf.unstack(pBatch,axis=1)
+			pMtrxBatch = tf.transpose(tf.stack([[I+p1,p2,p3],
 											   [p4,I+p5,p6],
 											   [O,O,I]]),perm=[2,0,1])
 		elif params.warpType=="homography":
-			p1,p2,p3,p4,p5,p6,p7,p8 = tf.unpack(pBatch,axis=1)
-			pMtrxBatch = tf.transpose(tf.pack([[I+p1,p2,p3],
+			p1,p2,p3,p4,p5,p6,p7,p8 = tf.unstack(pBatch,axis=1)
+			pMtrxBatch = tf.transpose(tf.stack([[I+p1,p2,p3],
 											   [p4,I+p5,p6],
 											   [p7,p8,I]]),perm=[2,0,1])
 	return pMtrxBatch
@@ -72,28 +72,28 @@ def vec2mtrxBatch(pBatch,params):
 def mtrx2vecBatch(pMtrxBatch,params):
 	with tf.name_scope("mtrx2vec"):
 		if params.warpType=="translation":
-			[row0,row1,row2] = tf.unpack(pMtrxBatch,axis=1)
-			[e00,e01,e02] = tf.unpack(row0,axis=1)
-			[e10,e11,e12] = tf.unpack(row1,axis=1)
-			[e20,e21,e22] = tf.unpack(row2,axis=1)
-			pBatch = tf.pack([e02,e12],axis=1)
+			[row0,row1,row2] = tf.unstack(pMtrxBatch,axis=1)
+			[e00,e01,e02] = tf.unstack(row0,axis=1)
+			[e10,e11,e12] = tf.unstack(row1,axis=1)
+			[e20,e21,e22] = tf.unstack(row2,axis=1)
+			pBatch = tf.stack([e02,e12],axis=1)
 		elif params.warpType=="similarity":
-			[row0,row1,row2] = tf.unpack(pMtrxBatch,axis=1)
-			[e00,e01,e02] = tf.unpack(row0,axis=1)
-			[e10,e11,e12] = tf.unpack(row1,axis=1)
-			[e20,e21,e22] = tf.unpack(row2,axis=1)
-			pBatch = tf.pack([e00-1,e10,e02,e12],axis=1)
+			[row0,row1,row2] = tf.unstack(pMtrxBatch,axis=1)
+			[e00,e01,e02] = tf.unstack(row0,axis=1)
+			[e10,e11,e12] = tf.unstack(row1,axis=1)
+			[e20,e21,e22] = tf.unstack(row2,axis=1)
+			pBatch = tf.stack([e00-1,e10,e02,e12],axis=1)
 		elif params.warpType=="affine":
-			[row0,row1,row2] = tf.unpack(pMtrxBatch,axis=1)
-			[e00,e01,e02] = tf.unpack(row0,axis=1)
-			[e10,e11,e12] = tf.unpack(row1,axis=1)
-			[e20,e21,e22] = tf.unpack(row2,axis=1)
-			pBatch = tf.pack([e00-1,e01,e02,e10,e11-1,e12],axis=1)
+			[row0,row1,row2] = tf.unstack(pMtrxBatch,axis=1)
+			[e00,e01,e02] = tf.unstack(row0,axis=1)
+			[e10,e11,e12] = tf.unstack(row1,axis=1)
+			[e20,e21,e22] = tf.unstack(row2,axis=1)
+			pBatch = tf.stack([e00-1,e01,e02,e10,e11-1,e12],axis=1)
 		elif params.warpType=="homography":
 			pMtrxBatch = pMtrxBatch/tf.slice(pMtrxBatch,[0,2,2],[-1,1,1])
-			[row0,row1,row2] = tf.unpack(pMtrxBatch,axis=1)
-			[e00,e01,e02] = tf.unpack(row0,axis=1)
-			[e10,e11,e12] = tf.unpack(row1,axis=1)
-			[e20,e21,e22] = tf.unpack(row2,axis=1)
-			pBatch = tf.pack([e00-1,e01,e02,e10,e11-1,e12,e20,e21],axis=1)
+			[row0,row1,row2] = tf.unstack(pMtrxBatch,axis=1)
+			[e00,e01,e02] = tf.unstack(row0,axis=1)
+			[e10,e11,e12] = tf.unstack(row1,axis=1)
+			[e20,e21,e22] = tf.unstack(row2,axis=1)
+			pBatch = tf.stack([e00-1,e01,e02,e10,e11-1,e12,e20,e21],axis=1)
 	return pBatch

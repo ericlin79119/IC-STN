@@ -76,14 +76,14 @@ def makeImageSummary(tag,image,params):
 		imagePermute = tf.reshape(imageOne,[params.H,blockSize,params.W,blockSize,1])
 		imageTransp = tf.transpose(imagePermute,[1,0,3,2,4])
 		imageBlocks = tf.reshape(imageTransp,[1,params.H*blockSize,params.W*blockSize,1])
-		tf.image_summary(tag,imageBlocks)
+		tf.summary.scalar(tag,imageBlocks)
 
 # set optimizer for different learning rates
 def setOptimizer(loss,learningRate,params):
-	varList = tf.all_variables()
+	varList = tf.global_variables()
 	varListST = [v for v in varList if "ST" in v.name]
 	varListOther = [v for v in varList if "ST" not in v.name]
-	lrST,lrOther = tf.unpack(learningRate)
+	lrST,lrOther = tf.unstack(learningRate)
 	gradients = tf.gradients(loss,varListST+varListOther)
 	optimizerOther = tf.train.GradientDescentOptimizer(lrOther)
 	gradientsOther = gradients[len(varListST):]
