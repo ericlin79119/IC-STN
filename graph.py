@@ -76,7 +76,7 @@ def makeImageSummary(tag,image,params):
 		imagePermute = tf.reshape(imageOne,[params.H,blockSize,params.W,blockSize,1])
 		imageTransp = tf.transpose(imagePermute,[1,0,3,2,4])
 		imageBlocks = tf.reshape(imageTransp,[1,params.H*blockSize,params.W*blockSize,1])
-		tf.summary.scalar(tag,imageBlocks)
+		tf.summary.image(tag,imageBlocks)
 
 # set optimizer for different learning rates
 def setOptimizer(loss,learningRate,params):
