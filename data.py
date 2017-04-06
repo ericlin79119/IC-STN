@@ -44,9 +44,9 @@ def genPerturbations(params):
 			dXY = tf.expand_dims(tf.concat(1,[dX,dY]),-1)
 			dpBatch = tf.matrix_solve_ls(J,dXY)
 		elif params.warpType=="homography":
-			A = tf.concat(1,[tf.pack([X,Y,I,O,O,O,-X*(X+dX),-Y*(X+dX)],axis=-1),
-							 tf.pack([O,O,O,X,Y,I,-X*(Y+dY),-Y*(Y+dY)],axis=-1)])
-			b = tf.expand_dims(tf.concat(1,[X+dX,Y+dY]),-1)
+			A = tf.concat([tf.stack([X,Y,I,O,O,O,-X*(X+dX),-Y*(X+dX)],axis=-1),
+							 tf.stack([O,O,O,X,Y,I,-X*(Y+dY),-Y*(Y+dY)],axis=-1)], 1)
+			b = tf.expand_dims(tf.concat([X+dX,Y+dY], 1),-1)
 			dpBatch = tf.matrix_solve_ls(A,b)
 			dpBatch -= tf.to_float(tf.reshape([1,0,0,0,1,0,0,0],[1,8,1]))
 		dpBatch = tf.reduce_sum(dpBatch,reduction_indices=-1)
@@ -81,13 +81,13 @@ def imageWarpIm(imageBatch,pMtrxBatch,params,name=None):
 		imageH,imageW = params.H,params.H
 		H,W = params.H,params.W
 		warpGTmtrxBatch = tf.tile(tf.expand_dims(params.warpGTmtrx,0),[batchSize,1,1])
-		transMtrxBatch = tf.batch_matmul(warpGTmtrxBatch,pMtrxBatch)
+		transMtrxBatch = tf.matmul(warpGTmtrxBatch,pMtrxBatch)
 		# warp the canonical coordinates
 		X,Y = np.meshgrid(np.linspace(-1,1,W),np.linspace(-1,1,H))
-		XYhom = tf.transpose(tf.pack([X.reshape([-1]),Y.reshape([-1]),np.ones([X.size])],axis=1))
+		XYhom = tf.transpose(tf.stack([X.reshape([-1]),Y.reshape([-1]),np.ones([X.size])],axis=1))
 		XYhomBatch = tf.tile(tf.expand_dims(XYhom,0),[batchSize,1,1])
-		XYwarpHomBatch = tf.batch_matmul(transMtrxBatch,tf.to_float(XYhomBatch))
-		XwarpHom,YwarpHom,ZwarpHom = tf.split(1,3,XYwarpHomBatch)
+		XYwarpHomBatch = tf.matmul(transMtrxBatch,tf.to_float(XYhomBatch))
+		XwarpHom,YwarpHom,ZwarpHom = tf.split(XYwarpHomBatch, 3, 1)
 		Xwarp = tf.reshape(XwarpHom/ZwarpHom,[batchSize,H,W])
 		Ywarp = tf.reshape(YwarpHom/ZwarpHom,[batchSize,H,W])
 		# get the integer sampling coordinates
@@ -97,7 +97,7 @@ def imageWarpIm(imageBatch,pMtrxBatch,params,name=None):
 		YfloorInt,YceilInt = tf.to_int32(Yfloor),tf.to_int32(Yceil)
 		imageIdx = tf.tile(tf.reshape(tf.range(batchSize),[batchSize,1,1]),[1,H,W])
 		imageVec = tf.reshape(imageBatch,[-1,tf.shape(imageBatch)[3]])
-		imageVecOutside = tf.concat(0,[imageVec,tf.zeros([1,tf.shape(imageBatch)[3]])])
+		imageVecOutside = tf.concat([imageVec,tf.zeros([1,tf.shape(imageBatch)[3]])], 0)
 		idxUL = (imageIdx*imageH+YfloorInt)*imageW+XfloorInt
 		idxUR = (imageIdx*imageH+YfloorInt)*imageW+XceilInt
 		idxBL = (imageIdx*imageH+YceilInt)*imageW+XfloorInt
@@ -105,10 +105,10 @@ def imageWarpIm(imageBatch,pMtrxBatch,params,name=None):
 		idxOutside = tf.fill([batchSize,H,W],batchSize*imageH*imageW)
 		def insideIm(Xint,Yint):
 			return (Xint>=0)&(Xint<imageW)&(Yint>=0)&(Yint<imageH)
-		idxUL = tf.select(insideIm(XfloorInt,YfloorInt),idxUL,idxOutside)
-		idxUR = tf.select(insideIm(XceilInt,YfloorInt),idxUR,idxOutside)
-		idxBL = tf.select(insideIm(XfloorInt,YceilInt),idxBL,idxOutside)
-		idxBR = tf.select(insideIm(XceilInt,YceilInt),idxBR,idxOutside)
+		idxUL = tf.where(insideIm(XfloorInt,YfloorInt),idxUL,idxOutside)
+		idxUR = tf.where(insideIm(XceilInt,YfloorInt),idxUR,idxOutside)
+		idxBL = tf.where(insideIm(XfloorInt,YceilInt),idxBL,idxOutside)
+		idxBR = tf.where(insideIm(XceilInt,YceilInt),idxBR,idxOutside)
 		# bilinear interpolation
 		Xratio = tf.reshape(Xwarp-Xfloor,[batchSize,H,W,1])
 		Yratio = tf.reshape(Ywarp-Yfloor,[batchSize,H,W,1])
@@ -126,13 +126,13 @@ def ImWarpIm(ImBatch,pMtrxBatch,params,name=None):
 		batchSize = tf.shape(ImBatch)[0]
 		H,W = params.H,params.W
 		warpGTmtrxBatch = tf.tile(tf.expand_dims(params.warpGTmtrx,0),[batchSize,1,1])
-		transMtrxBatch = tf.batch_matmul(warpGTmtrxBatch,pMtrxBatch)
+		transMtrxBatch = tf.matmul(warpGTmtrxBatch,pMtrxBatch)
 		# warp the canonical coordinates
 		X,Y = np.meshgrid(np.linspace(-1,1,W),np.linspace(-1,1,H))
-		XYhom = tf.transpose(tf.pack([X.reshape([-1]),Y.reshape([-1]),np.ones([X.size])],axis=1))
+		XYhom = tf.transpose(tf.stack([X.reshape([-1]),Y.reshape([-1]),np.ones([X.size])],axis=1))
 		XYhomBatch = tf.tile(tf.expand_dims(XYhom,0),[batchSize,1,1])
-		XYwarpHomBatch = tf.batch_matmul(transMtrxBatch,tf.to_float(XYhomBatch))
-		XwarpHom,YwarpHom,ZwarpHom = tf.split(1,3,XYwarpHomBatch)
+		XYwarpHomBatch = tf.matmul(transMtrxBatch,tf.to_float(XYhomBatch))
+		XwarpHom,YwarpHom,ZwarpHom = tf.split(XYwarpHomBatch, 3, 1)
 		Xwarp = tf.reshape(XwarpHom/ZwarpHom,[batchSize,H,W])
 		Ywarp = tf.reshape(YwarpHom/ZwarpHom,[batchSize,H,W])
 		# get the integer sampling coordinates
@@ -142,7 +142,7 @@ def ImWarpIm(ImBatch,pMtrxBatch,params,name=None):
 		YfloorInt,YceilInt = tf.to_int32(Yfloor),tf.to_int32(Yceil)
 		ImIdx = tf.tile(tf.reshape(tf.range(batchSize),[batchSize,1,1]),[1,H,W])
 		ImVecBatch = tf.reshape(ImBatch,[-1,tf.shape(ImBatch)[3]])
-		ImVecBatchOutside = tf.concat(0,[ImVecBatch,tf.zeros([1,tf.shape(ImBatch)[3]])])
+		ImVecBatchOutside = tf.concat([ImVecBatch,tf.zeros([1,tf.shape(ImBatch)[3]])], 0)
 		idxUL = (ImIdx*H+YfloorInt)*W+XfloorInt
 		idxUR = (ImIdx*H+YfloorInt)*W+XceilInt
 		idxBL = (ImIdx*H+YceilInt)*W+XfloorInt
@@ -150,10 +150,10 @@ def ImWarpIm(ImBatch,pMtrxBatch,params,name=None):
 		idxOutside = tf.fill([batchSize,H,W],batchSize*H*W)
 		def insideIm(Xint,Yint):
 			return (Xint>=0)&(Xint<W)&(Yint>=0)&(Yint<H)
-		idxUL = tf.select(insideIm(XfloorInt,YfloorInt),idxUL,idxOutside)
-		idxUR = tf.select(insideIm(XceilInt,YfloorInt),idxUR,idxOutside)
-		idxBL = tf.select(insideIm(XfloorInt,YceilInt),idxBL,idxOutside)
-		idxBR = tf.select(insideIm(XceilInt,YceilInt),idxBR,idxOutside)
+		idxUL = tf.where(insideIm(XfloorInt,YfloorInt),idxUL,idxOutside)
+		idxUR = tf.where(insideIm(XceilInt,YfloorInt),idxUR,idxOutside)
+		idxBL = tf.where(insideIm(XfloorInt,YceilInt),idxBL,idxOutside)
+		idxBR = tf.where(insideIm(XceilInt,YceilInt),idxBR,idxOutside)
 		# bilinear interpolation
 		Xratio = tf.reshape(Xwarp-Xfloor,[batchSize,H,W,1])
 		Yratio = tf.reshape(Ywarp-Yfloor,[batchSize,H,W,1])
