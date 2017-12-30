@@ -46,7 +46,7 @@ def vec2mtrx(opt,p):
 							 torch.stack([ps,I+pc,ty],dim=-1),
 							 torch.stack([O,O,I],dim=-1)],dim=1)
 	if opt.warpType=="affine":
-		p1,p2,p3,p4,p5,p6,p7,p8 = torch.unbind(p,dim=1)
+		p1,p2,p3,p4,p5,p6 = torch.unbind(p,dim=1)
 		pMtrx = torch.stack([torch.stack([I+p1,p2,p3],dim=-1),
 							 torch.stack([p4,I+p5,p6],dim=-1),
 							 torch.stack([O,O,I],dim=-1)],dim=1)
