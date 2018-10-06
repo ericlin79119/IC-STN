@@ -119,3 +119,7 @@ def evalTest(opt,data,geometric,classifier):
 	geometric.train()
 	classifier.train()
 	return accuracy,mean,var
+
+# evaluation on valid set
+def evalValid(opt,data,geometric,classifier):
+	return evalTest(opt,data,geometric,classifier)

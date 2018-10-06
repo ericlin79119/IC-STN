@@ -105,6 +105,66 @@ class STN(torch.nn.Module):
 		imageWarpAll.append(imageWarp)
 		return imageWarpAll
 
+# build compositional STN
+class CSTN(torch.nn.Module):
+	def __init__(self, opt):
+		super(CSTN, self).__init__()
+		
+		def conv2Layer(inDim, outDim):
+			conv = torch.nn.Conv2d(inDim,outDim,kernel_size=[9,9],stride=1,padding=0)
+			return conv
+		
+		def linearLayer(inDim, outDim):
+			fc = torch.nn.Linear(inDim,outDim)
+			return fc
+
+		def build_c_stn(num_stn, stn_list):
+			assert(num_stn == 2 or num_stn == 4)
+			#structure for c-stn-2, MNIST
+			if num_stn == 2:
+				for i in range(num_stn):
+					stn = torch.nn.Sequential(
+						conv2Layer(1,4), torch.nn.ReLU(True),
+						linearLayer(1600, opt.warpDim)
+					)
+					stn_list.append(stn)
+			
+			#structure for c-stn-4, MNIST
+			if num_stn == 4:
+				for i in range(num_stn):
+					stn = torch.nn.Sequential(
+						linearLayer(28*28*1, opt.warpDim)
+					)
+					stn_list.append(stn)
+		
+		self.c_stn_x = []
+		self.flat_input = True if opt.stnN == 2 else False
+		build_c_stn(opt.stnN, self.c_stn_x)
+
+	def forward(self, opt, image, p):
+		imageWarpAll = []
+		for l in range(opt.stnN):
+			pMtrx = warp.vec2mtrx(opt,p)
+			imageWarp = warp.transformImage(opt,image,pMtrx)
+			imageWarpAll.append(imageWarp)
+			feat = imageWarp
+			# feat = self.conv2Layers(feat).view(opt.batchSize,-1)
+			# feat = self.linearLayers(feat)
+			if self.flat_input == True:
+				feat = feat.view(opt.batchSize,-1)
+			feat = self.c_stn_x[l](feat)
+			dp = feat
+			p = warp.compose(opt,p,dp)
+		pMtrx = warp.vec2mtrx(opt,p)
+		imageWarp = warp.transformImage(opt,image,pMtrx)
+		imageWarpAll.append(imageWarp)
+		return imageWarpAll
+
+	def forward_fake(self, image):
+		pass
+
+
+
 # build Inverse Compositional STN
 class ICSTN(torch.nn.Module):
 	def __init__(self,opt):

@@ -29,6 +29,9 @@ with torch.cuda.device(0):
 	elif opt.netType=="IC-STN":
 		geometric = graph.ICSTN(opt)
 		classifier = graph.CNN(opt)
+	elif opt.netType=="C-STN":
+		geometric = graph.CSTN(opt)
+		classifier = graph.CNN(opt)
 	# ------ define loss ------
 	loss = torch.nn.CrossEntropyLoss()
 	# ------ optimizer ------
@@ -45,6 +48,11 @@ vis = util.Visdom(opt)
 
 print(util.toYellow("======= TRAINING START ======="))
 timeStart = time.time()
+
+best_valid_error = float("inf")
+accompany_it = 0
+accompany_test_error = float("inf")
+
 # start session
 with torch.cuda.device(0):
 	geometric.train()
@@ -68,7 +76,7 @@ with torch.cuda.device(0):
 		# forward/backprop through network
 		optim.zero_grad()
 		imagePert = warp.transformImage(opt,image,pInitMtrx)
-		imageWarpAll = geometric(opt,image,pInit) if opt.netType=="IC-STN" else geometric(opt,imagePert)
+		imageWarpAll = geometric(opt,image,pInit) if opt.netType=="IC-STN" or opt.netType=="C-STN" else geometric(opt,imagePert)
 		imageWarp = imageWarpAll[-1]
 		output = classifier(opt,imageWarp)
 		train_loss = loss(output,label)
@@ -85,14 +93,39 @@ with torch.cuda.device(0):
 						util.toRed("{0:.4f}".format(train_loss.data[0]))))
 		if (i+1)%200==0: vis.trainLoss(opt,i+1,train_loss)
 		if (i+1)%1000==0:
+			# evaluate on validation set
+			validAcc,validMean,validVar = data.evalValid(opt,validData,geometric,classifier)
+			validError = (1-validAcc)*100
+			vis.validLoss(opt,i+1,validError)
+			if opt.netType=="STN" or opt.netType=="IC-STN" or opt.netType=="C-STN":
+				vis.meanVar(opt,validMean,validVar)
+
+			# if current valid error is best, save model and calculate the test error
+			if validError < best_valid_error:
+				testAcc,testMean,testVar = data.evalTest(opt,testData,geometric,classifier)
+				testError = (1-testAcc)*100
+				vis.testLoss(opt,i+1,testError)
+			
+				accompany_it = i
+				accompany_test_error = testError
+				best_valid_error = validError				
+			# if the best valid error has not been updated for a long time, stop training
+			if i - accompany_it > opt.gapIt:
+				break
+			'''
 			# evaluate on test set
 			testAcc,testMean,testVar = data.evalTest(opt,testData,geometric,classifier)
 			testError = (1-testAcc)*100
 			vis.testLoss(opt,i+1,testError)
 			if opt.netType=="STN" or opt.netType=="IC-STN":
 				vis.meanVar(opt,testMean,testVar)
+			'''
 		if (i+1)%10000==0:
 			util.saveModel(opt,geometric,classifier,i+1)
 			print(util.toGreen("model saved: {0}/{1}, it.{2}".format(opt.group,opt.model,i+1)))
 
 print(util.toYellow("======= TRAINING DONE ======="))
+
+print('best validation error:', best_valid_error)
+print('at iteration: ', accompany_it)
+print('test error is:', accompany_test_error)

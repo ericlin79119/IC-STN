@@ -39,14 +39,17 @@ class Visdom():
 	def __init__(self,opt):
 		self.vis = visdom.Visdom(port=opt.port)
 		self.trainLossInit = True
+		self.validLossInit = True
 		self.testLossInit = True
 		self.meanVarInit = True
+	
 	def tileImages(self,opt,images,H,W,HN,WN):
 		assert(len(images)==HN*WN)
 		images = images.reshape([HN,WN,-1,H,W])
 		images = [list(i) for i in images]
 		imageBlocks = np.concatenate([np.concatenate(row,axis=2) for row in images],axis=1)
 		return imageBlocks
+	
 	def trainLoss(self,opt,it,loss):
 		loss = float(toNumpy(loss))
 		if self.trainLossInit:
@@ -54,12 +57,21 @@ class Visdom():
 						  opts={ "title": "{0} (TRAIN_loss)".format(opt.model) })
 			self.trainLossInit = False
 		else: self.vis.line(Y=np.array([loss]),X=np.array([it]),win=opt.model+"_trainloss",update="append")
+	
 	def testLoss(self,opt,it,loss):
 		if self.testLossInit:
 			self.vis.line(Y=np.array([loss]),X=np.array([it]),win="{0}_testloss".format(opt.model),
 						  opts={ "title": "{0} (TEST_error)".format(opt.model) })
 			self.testLossInit = False
 		else: self.vis.line(Y=np.array([loss]),X=np.array([it]),win=opt.model+"_testloss",update="append")
+	
+	def validLoss(self,opt,it,loss):
+		if self.validLossInit:
+			self.vis.line(Y=np.array([loss]),X=np.array([it]),win="{0}_validloss".format(opt.model),
+						  opts={ "title": "{0} (VALID_error)".format(opt.model) })
+			self.validLossInit = False
+		else: self.vis.line(Y=np.array([loss]),X=np.array([it]),win=opt.model+"_validloss",update="append")
+	
 	def meanVar(self,opt,mean,var):
 		mean = [self.tileImages(opt,m,opt.H,opt.W,1,10) for m in mean]
 		var = [self.tileImages(opt,v,opt.H,opt.W,1,10)*3 for v in var]

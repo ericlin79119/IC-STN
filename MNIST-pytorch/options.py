@@ -8,13 +8,14 @@ def set(training):
 
 	# parse input arguments
 	parser = argparse.ArgumentParser()
-	parser.add_argument("netType",		choices=["CNN","STN","IC-STN"],		help="type of network")
+	parser.add_argument("netType",		choices=["CNN","STN","IC-STN", "C-STN"],		help="type of network")
 	parser.add_argument("--group",					default="0",			help="name for group")
 	parser.add_argument("--model",					default="test",			help="name for model instance")
 	parser.add_argument("--size",					default="28x28",		help="image resolution")
 	parser.add_argument("--warpType",				default="homography",	help="type of warp function on images",
 																			choices=["translation","similarity","affine","homography"])
 	parser.add_argument("--warpN",		type=int,	default=4,				help="number of recurrent transformations (for IC-STN)")
+	parser.add_argument("--stnN",		type=int,	default=1,				help="number of independent STN module (for c-STN)")
 	parser.add_argument("--stdC",		type=float,	default=0.1,			help="initialization stddev (classification network)")
 	parser.add_argument("--stdGP",		type=float,	default=0.1,			help="initialization stddev (geometric predictor)")
 	parser.add_argument("--pertScale",	type=float,	default=0.25,			help="initial perturbation scale")
@@ -28,13 +29,15 @@ def set(training):
 		parser.add_argument("--lrStep",		type=int,	default=100000,	help="learning rate decay step size")
 		parser.add_argument("--fromIt",		type=int,	default=0,		help="resume training from iteration number")
 		parser.add_argument("--toIt",		type=int,	default=500000,	help="run training to iteration number")
+		parser.add_argument("--gapIt",		type=int,	default=100000,	help="stop training if no better resluts after this number of iterations")
 	else: # evaluation
 		parser.add_argument("--batchSize",	type=int,	default=1,		help="batch size for evaluation")
 	opt = parser.parse_args()
 
 	if opt.lrGP is None: opt.lrGP = 0 if opt.netType=="CNN" else \
 									1e-2 if opt.netType=="STN" else \
-									1e-4 if opt.netType=="IC-STN" else None
+									1e-4 if opt.netType=="IC-STN" else \
+									1e-4 if opt.netType=="C-STN" else None
 
 	# --- below are automatically set ---
 	assert(torch.cuda.is_available()) # support only training on GPU for now
