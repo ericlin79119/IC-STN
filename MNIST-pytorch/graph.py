@@ -70,6 +70,14 @@ class Identity(torch.nn.Module):
 	def __init__(self): super(Identity,self).__init__()
 	def forward(self,opt,feat): return [feat]
 
+# flatten feature map to 1d vector
+class Flatten(torch.nn.Module):
+    def __init__(self):
+        super(Flatten, self).__init__()
+
+    def forward(self, x):
+        return x.view(x.size(0), -1)
+
 # build Spatial Transformer Network
 class STN(torch.nn.Module):
 	def __init__(self,opt):
@@ -125,6 +133,7 @@ class CSTN(torch.nn.Module):
 				for i in range(num_stn):
 					stn = torch.nn.Sequential(
 						conv2Layer(1,4), torch.nn.ReLU(True),
+						Flatten(),
 						linearLayer(1600, opt.warpDim)
 					)
 					stn_list.append(stn)
@@ -133,13 +142,14 @@ class CSTN(torch.nn.Module):
 			if num_stn == 4:
 				for i in range(num_stn):
 					stn = torch.nn.Sequential(
+						Flatten(),
 						linearLayer(28*28*1, opt.warpDim)
 					)
 					stn_list.append(stn)
 		
-		self.c_stn_x = []
-		self.flat_input = True if opt.stnN == 2 else False
+		self.c_stn_x = torch.nn.ModuleList()
 		build_c_stn(opt.stnN, self.c_stn_x)
+		initialize_cstn(opt,self,opt.stdGP,last0=True)
 
 	def forward(self, opt, image, p):
 		imageWarpAll = []
@@ -148,10 +158,6 @@ class CSTN(torch.nn.Module):
 			imageWarp = warp.transformImage(opt,image,pMtrx)
 			imageWarpAll.append(imageWarp)
 			feat = imageWarp
-			# feat = self.conv2Layers(feat).view(opt.batchSize,-1)
-			# feat = self.linearLayers(feat)
-			if self.flat_input == True:
-				feat = feat.view(opt.batchSize,-1)
 			feat = self.c_stn_x[l](feat)
 			dp = feat
 			p = warp.compose(opt,p,dp)
@@ -160,8 +166,13 @@ class CSTN(torch.nn.Module):
 		imageWarpAll.append(imageWarp)
 		return imageWarpAll
 
-	def forward_fake(self, image):
-		pass
+	# def forward(self, image):
+	# 	imageWarpAll = []
+	# 	for l in range(NOT_DEFINED):
+	# 		feat = image
+	# 		feat = self.c_stn_x[l](feat)
+	# 		imageWarpAll.append(image)
+	# 	return imageWarpAll
 
 
 
@@ -219,3 +230,19 @@ def initialize(opt,model,stddev,last0=False):
 			else:
 				m.weight.data.normal_(0,stddev)
 				m.bias.data.normal_(0,stddev)
+
+def initialize_cstn(opt,model,stddev,last0=False):
+	for l in model.c_stn_x:
+		for m in l:
+			if isinstance(m,torch.nn.Conv2d):
+				# print('conv2d init')
+				m.weight.data.normal_(0,stddev)
+				m.bias.data.normal_(0,stddev)
+			if isinstance(m,torch.nn.Linear):
+				# print('linear init')
+				if last0 and m is l[-1]:
+					m.weight.data.zero_()
+					m.bias.data.zero_()
+				else:
+					m.weight.data.normal_(0,stddev)
+					m.bias.data.normal_(0,stddev)

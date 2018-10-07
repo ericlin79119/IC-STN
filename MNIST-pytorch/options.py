@@ -15,7 +15,7 @@ def set(training):
 	parser.add_argument("--warpType",				default="homography",	help="type of warp function on images",
 																			choices=["translation","similarity","affine","homography"])
 	parser.add_argument("--warpN",		type=int,	default=4,				help="number of recurrent transformations (for IC-STN)")
-	parser.add_argument("--stnN",		type=int,	default=1,				help="number of independent STN module (for c-STN)")
+	parser.add_argument("--stnN",		type=int,	default=2,				help="number of independent STN module (for c-STN)")
 	parser.add_argument("--stdC",		type=float,	default=0.1,			help="initialization stddev (classification network)")
 	parser.add_argument("--stdGP",		type=float,	default=0.1,			help="initialization stddev (geometric predictor)")
 	parser.add_argument("--pertScale",	type=float,	default=0.25,			help="initial perturbation scale")
