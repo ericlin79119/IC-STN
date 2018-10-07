@@ -20,7 +20,9 @@ def compose(opt,p,dp):
 	pMtrx = vec2mtrx(opt,p)
 	dpMtrx = vec2mtrx(opt,dp)
 	pMtrxNew = dpMtrx.matmul(pMtrx)
-	pMtrxNew /= pMtrxNew[:,2:3,2:3]
+	temp = pMtrxNew.clone()
+	pMtrxNew /= temp[:,2:3,2:3]
+	# pMtrxNew /= pMtrxNew[:,2:3,2:3]
 	pNew = mtrx2vec(opt,pMtrxNew)
 	return pNew
 
@@ -59,10 +61,14 @@ def vec2mtrx(opt,p):
 
 # convert warp matrix to parameters
 def mtrx2vec(opt,pMtrx):
-	[row0,row1,row2] = torch.unbind(pMtrx,dim=1)
-	[e00,e01,e02] = torch.unbind(row0,dim=1)
-	[e10,e11,e12] = torch.unbind(row1,dim=1)
-	[e20,e21,e22] = torch.unbind(row2,dim=1)
+	row0, row1, row2 = pMtrx[:,0,:], pMtrx[:,1,:], pMtrx[:,2,:]
+	e00, e01, e02 = row0[:,0], row0[:,1], row0[:,2]
+	e10, e11, e12 = row1[:,0], row1[:,1], row1[:,2]
+	e20, e21, e22 = row2[:,0], row2[:,1], row2[:,2]
+	# [row0,row1,row2] = torch.unbind(pMtrx,dim=1)
+	# [e00,e01,e02] = torch.unbind(row0,dim=1)
+	# [e10,e11,e12] = torch.unbind(row1,dim=1)
+	# [e20,e21,e22] = torch.unbind(row2,dim=1)
 	if opt.warpType=="translation": p = torch.stack([e02,e12],dim=1)
 	if opt.warpType=="similarity": p = torch.stack([e00-1,e10,e02,e12],dim=1)
 	if opt.warpType=="affine": p = torch.stack([e00-1,e01,e02,e10,e11-1,e12],dim=1)

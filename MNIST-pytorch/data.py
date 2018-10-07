@@ -95,12 +95,12 @@ def evalTest(opt,data,geometric,classifier):
 		pInit = genPerturbations(opt)
 		pInitMtrx = warp.vec2mtrx(opt,pInit)
 		imagePert = warp.transformImage(opt,image,pInitMtrx)
-		imageWarpAll = geometric(opt,image,pInit) if opt.netType=="IC-STN" else geometric(opt,imagePert)
+		imageWarpAll = geometric(opt,image,pInit) if opt.netType=="IC-STN" or opt.netType=="C-STN" else geometric(opt,imagePert)
 		imageWarp = imageWarpAll[-1]
 		output = classifier(opt,imageWarp)
 		_,pred = output.max(dim=1)
 		count += int(util.toNumpy((pred==label).sum()))
-		if opt.netType=="STN" or opt.netType=="IC-STN":
+		if opt.netType=="STN" or opt.netType=="IC-STN" or opt.netType=="C-STN":
 			imgPert = util.toNumpy(imagePert)
 			imgWarp = util.toNumpy(imageWarp)
 			for i in range(len(realIdx)):
@@ -110,7 +110,7 @@ def evalTest(opt,data,geometric,classifier):
 				warped[0][l].append(imgPert[i])
 				warped[1][l].append(imgWarp[i])
 	accuracy = float(count)/N
-	if opt.netType=="STN" or opt.netType=="IC-STN":
+	if opt.netType=="STN" or opt.netType=="IC-STN" or opt.netType=="C-STN":
 		mean = [np.array([np.mean(warped[0][l],axis=0) for l in warped[0]]),
 				np.array([np.mean(warped[1][l],axis=0) for l in warped[1]])]
 		var = [np.array([np.var(warped[0][l],axis=0) for l in warped[0]]),
@@ -119,3 +119,7 @@ def evalTest(opt,data,geometric,classifier):
 	geometric.train()
 	classifier.train()
 	return accuracy,mean,var
+
+# evaluation on valid set
+def evalValid(opt,data,geometric,classifier):
+	return evalTest(opt,data,geometric,classifier)
