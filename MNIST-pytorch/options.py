@@ -52,8 +52,9 @@ def set(training):
 	opt.labelN = 10
 	opt.canon4pts = np.array([[-1,-1],[-1,1],[1,1],[1,-1]],dtype=np.float32)
 	opt.image4pts = np.array([[0,0],[0,opt.H-1],[opt.W-1,opt.H-1],[opt.W-1,0]],dtype=np.float32)
-	opt.refMtrx = warp.fit(Xsrc=opt.canon4pts,Xdst=opt.image4pts)
-	# opt.refMtrx = np.eye(3).astype(np.float32)
+	# opt.refMtrx = warp.fit(Xsrc=opt.canon4pts,Xdst=opt.image4pts)
+	# https://github.com/chenhsuanlin/inverse-compositional-STN/issues/11
+	opt.refMtrx = np.eye(3).astype(np.float32)
 	if opt.netType=="STN": opt.warpN = 1
 
 	print("({0}) {1}".format(
