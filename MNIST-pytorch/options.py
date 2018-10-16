@@ -8,7 +8,7 @@ def set(training):
 
 	# parse input arguments
 	parser = argparse.ArgumentParser()
-	parser.add_argument("netType",		choices=["CNN","STN","IC-STN", "C-STN"],		help="type of network")
+	parser.add_argument("netType",		choices=["CNN","STN","IC-STN", "C-STN", "DeSTN"],		help="type of network")
 	parser.add_argument("--group",					default="0",			help="name for group")
 	parser.add_argument("--model",					default="test",			help="name for model instance")
 	parser.add_argument("--size",					default="28x28",		help="image resolution")
@@ -37,7 +37,8 @@ def set(training):
 	if opt.lrGP is None: opt.lrGP = 0 if opt.netType=="CNN" else \
 									1e-2 if opt.netType=="STN" else \
 									1e-4 if opt.netType=="IC-STN" else \
-									1e-4 if opt.netType=="C-STN" else None
+									1e-4 if opt.netType=="C-STN" else \
+									1e-4 if opt.netType=="DeSTN" else None
 
 	# --- below are automatically set ---
 	assert(torch.cuda.is_available()) # support only training on GPU for now

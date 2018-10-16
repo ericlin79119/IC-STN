@@ -32,6 +32,9 @@ with torch.cuda.device(0):
 	elif opt.netType=="C-STN":
 		geometric = graph.CSTN(opt)
 		classifier = graph.CNN(opt)
+	elif opt.netType=="DeSTN":
+		geometric = graph.DenseCSTN(opt)
+		classifier = graph.CNN(opt)
 	# ------ define loss ------
 	loss = torch.nn.CrossEntropyLoss()
 	# ------ optimizer ------
@@ -52,6 +55,7 @@ timeStart = time.time()
 best_valid_error = float("inf")
 accompany_it = 0
 accompany_test_error = float("inf")
+
 
 # start session
 with torch.cuda.device(0):
@@ -76,13 +80,34 @@ with torch.cuda.device(0):
 		# forward/backprop through network
 		optim.zero_grad()
 		imagePert = warp.transformImage(opt,image,pInitMtrx)
-		imageWarpAll = geometric(opt,image,pInit) if opt.netType=="IC-STN" or opt.netType=="C-STN" else geometric(opt,imagePert)
+
+		#old weights
+		# old_state_dict = {}
+		# for key in geometric.state_dict():
+		# 	old_state_dict[key] = geometric.state_dict()[key].clone()
+		
+		imageWarpAll = geometric(opt,image,pInit) if opt.netType=="IC-STN" or opt.netType=="C-STN" or opt.netType=="DeSTN" else geometric(opt,imagePert)
 		imageWarp = imageWarpAll[-1]
 		output = classifier(opt,imageWarp)
 		train_loss = loss(output,label)
 		train_loss.backward()
 		# run one step
 		optim.step()
+
+		# Save new params
+		# new_state_dict = {}
+		# for key in geometric.state_dict():
+		# 	new_state_dict[key] = geometric.state_dict()[key].clone()
+
+		# Compare params
+		# changed_flag = False
+		# for key in old_state_dict:
+		# 	if not (old_state_dict[key] == new_state_dict[key]).all():
+		# 		changed_flag = True
+		# 		break
+		# if changed_flag:
+		# 	print('weights changed')
+
 		if (i+1)%100==0:
 			print("it. {0}/{1}  lr={3}(GP),{4}(C), loss={5}, time={2}"
 				.format(util.toCyan("{0}".format(i+1)),
@@ -97,7 +122,7 @@ with torch.cuda.device(0):
 			validAcc,validMean,validVar = data.evalValid(opt,validData,geometric,classifier)
 			validError = (1-validAcc)*100
 			vis.validLoss(opt,i+1,validError)
-			if opt.netType=="STN" or opt.netType=="IC-STN" or opt.netType=="C-STN":
+			if opt.netType=="STN" or opt.netType=="IC-STN" or opt.netType=="C-STN" or opt.netType=="DeSTN":
 				vis.meanVar(opt,validMean,validVar)
 
 			# if current valid error is best, save model and calculate the test error

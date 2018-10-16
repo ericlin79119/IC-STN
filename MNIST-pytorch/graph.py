@@ -76,7 +76,7 @@ class Flatten(torch.nn.Module):
         super(Flatten, self).__init__()
 
     def forward(self, x):
-        return x.view(x.size(0), -1)
+        return x.contiguous().view(x.shape[0], -1)
 
 # build Spatial Transformer Network
 class STN(torch.nn.Module):
@@ -174,6 +174,82 @@ class CSTN(torch.nn.Module):
 	# 		imageWarpAll.append(image)
 	# 	return imageWarpAll
 
+# densely fused STN
+class DenseCSTN(torch.nn.Module):
+	pass
+	def __init__(self,opt):
+		super(DenseCSTN, self).__init__()
+		def conv2Layer(inDim, outDim):
+			conv = torch.nn.Conv2d(inDim,outDim,kernel_size=[9,9],stride=1,padding=0)
+			return conv
+		
+		def linearLayer(inDim, outDim):
+			fc = torch.nn.Linear(inDim,outDim)
+			return fc
+
+		def build_c_stn(num_stn, stn_list):
+			assert(num_stn == 2 or num_stn == 4)
+			#structure for c-stn-2, MNIST
+			if num_stn == 2:
+				for i in range(num_stn):
+					stn = torch.nn.Sequential(
+						conv2Layer(1,4), torch.nn.ReLU(True),
+						Flatten(),
+						linearLayer(1600, opt.warpDim)
+					)
+					stn_list.append(stn)
+			
+			#structure for c-stn-4, MNIST
+			if num_stn == 4:
+				for i in range(num_stn):
+					stn = torch.nn.Sequential(
+						Flatten(),
+						linearLayer(28*28*1, opt.warpDim)
+					)
+					stn_list.append(stn)
+		
+		def build_fuse(num_fuse, fuse_list):
+			for i in range(num_fuse):
+
+				fuse = torch.nn.Sequential(
+						torch.nn.Conv2d(opt.warpDim*(i+2), opt.warpDim*(i+1)*256, 1),
+						# linearLayer(opt.warpDim*(i+2), opt.warpDim),
+						torch.nn.Tanh(),
+						Flatten(),
+						linearLayer(opt.warpDim*(i+1)*256, opt.warpDim)
+					)
+
+				fuse_list.append(fuse)
+
+		self.c_stn_x = torch.nn.ModuleList()
+		self.fuse_x = torch.nn.ModuleList()
+		build_c_stn(opt.stnN, self.c_stn_x)
+		build_fuse(opt.stnN, self.fuse_x)
+		initialize_cstn(opt,self,opt.stdGP,last0=True)
+		print(self.c_stn_x)
+		for l in range(opt.stnN):
+			print(self.c_stn_x[l])
+
+	def forward(self, opt, image, p):
+		imageWarpAll = []
+		dp_list = []
+		for l in range(opt.stnN):
+			pMtrx = warp.vec2mtrx(opt,p)
+			imageWarp = warp.transformImage(opt,image,pMtrx)
+			imageWarpAll.append(imageWarp)
+			feat = imageWarp
+			feat = self.c_stn_x[l](feat)
+			dp = feat
+			dp_list.append(dp)
+			if(l>0):
+				dp_fed = self.fuse_x[l-1](torch.cat(dp_list, dim=1).view(-1,dp.shape[1]*(l+1),1,1))
+			else:
+				dp_fed = dp
+			p = warp.compose(opt,p,dp_fed)
+		pMtrx = warp.vec2mtrx(opt,p)
+		imageWarp = warp.transformImage(opt,image,pMtrx)
+		imageWarpAll.append(imageWarp)
+		return imageWarpAll
 
 
 # build Inverse Compositional STN
