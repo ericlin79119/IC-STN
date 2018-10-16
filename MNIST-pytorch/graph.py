@@ -180,7 +180,7 @@ class DenseCSTN(torch.nn.Module):
 	def __init__(self,opt):
 		super(DenseCSTN, self).__init__()
 		def conv2Layer(inDim, outDim):
-			conv = torch.nn.Conv2d(inDim,outDim,kernel_size=[9,9],stride=1,padding=0)
+			conv = torch.nn.Conv2d(inDim,outDim,kernel_size=[7,7],stride=1,padding=0)
 			return conv
 		
 		def linearLayer(inDim, outDim):
@@ -188,25 +188,39 @@ class DenseCSTN(torch.nn.Module):
 			return fc
 
 		def build_c_stn(num_stn, stn_list):
-			assert(num_stn == 2 or num_stn == 4)
-			#structure for c-stn-2, MNIST
-			if num_stn == 2:
-				for i in range(num_stn):
-					stn = torch.nn.Sequential(
-						conv2Layer(1,4), torch.nn.ReLU(True),
-						Flatten(),
-						linearLayer(1600, opt.warpDim)
-					)
-					stn_list.append(stn)
+			# assert(num_stn == 2 or num_stn == 4)
+			# #structure for c-stn-2, MNIST
+			# if num_stn == 2:
+			# 	for i in range(num_stn):
+			# 		stn = torch.nn.Sequential(
+			# 			conv2Layer(1,4), torch.nn.ReLU(True),
+			# 			Flatten(),
+			# 			linearLayer(1600, opt.warpDim)
+			# 		)
+			# 		stn_list.append(stn)
 			
-			#structure for c-stn-4, MNIST
-			if num_stn == 4:
-				for i in range(num_stn):
-					stn = torch.nn.Sequential(
-						Flatten(),
-						linearLayer(28*28*1, opt.warpDim)
-					)
-					stn_list.append(stn)
+			# #structure for c-stn-4, MNIST
+			# if num_stn == 4:
+			# 	for i in range(num_stn):
+			# 		stn = torch.nn.Sequential(
+			# 			Flatten(),
+			# 			linearLayer(28*28*1, opt.warpDim)
+			# 		)
+			# 		stn_list.append(stn)
+
+			for i in range(num_stn):
+				stn = torch.nn.Sequential(
+					conv2Layer(1,4),
+					torch.nn.ReLU(True),
+					conv2Layer(4,8),
+					torch.nn.ReLU(True),
+					torch.nn.MaxPool2d([2,2],stride=2),
+					Flatten(),
+					linearLayer(512, 48),
+					torch.nn.ReLU(True),
+					linearLayer(48, opt.warpDim)
+				)
+				stn_list.append(stn)
 		
 		def build_fuse(num_fuse, fuse_list):
 			for i in range(num_fuse):
