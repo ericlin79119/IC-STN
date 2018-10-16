@@ -35,6 +35,14 @@ with torch.cuda.device(0):
 	elif opt.netType=="DeSTN":
 		geometric = graph.DenseCSTN(opt)
 		classifier = graph.CNN(opt)
+
+	print('*****geometric*****')
+	print(geometric)
+	print('***** *****')
+	print('*****classifier*****')
+	print(classifier)
+	print('***** *****')
+	
 	# ------ define loss ------
 	loss = torch.nn.CrossEntropyLoss()
 	# ------ optimizer ------
