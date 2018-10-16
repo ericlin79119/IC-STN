@@ -18,8 +18,8 @@ def set(training):
 	parser.add_argument("--stnN",		type=int,	default=2,				help="number of independent STN module (for c-STN)")
 	parser.add_argument("--stdC",		type=float,	default=0.1,			help="initialization stddev (classification network)")
 	parser.add_argument("--stdGP",		type=float,	default=0.1,			help="initialization stddev (geometric predictor)")
-	parser.add_argument("--pertScale",	type=float,	default=0.25,			help="initial perturbation scale")
-	parser.add_argument("--transScale",	type=float,	default=0.25,			help="initial translation scale")
+	parser.add_argument("--pertScale",	type=float,	default=0.125,			help="initial perturbation scale")
+	parser.add_argument("--transScale",	type=float,	default=0.125,			help="initial translation scale")
 	if training: # training
 		parser.add_argument("--port",		type=int,	default=8097,	help="port number for visdom visualization")
 		parser.add_argument("--batchSize",	type=int,	default=100,	help="batch size for SGD")
