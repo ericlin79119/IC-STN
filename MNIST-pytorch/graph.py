@@ -224,7 +224,7 @@ class DenseCSTN(torch.nn.Module):
 		self.c_stn_x = torch.nn.ModuleList()
 		self.fuse_x = torch.nn.ModuleList()
 		build_c_stn(opt.stnN, self.c_stn_x)
-		build_fuse(opt.stnN, self.fuse_x)
+		build_fuse(opt.stnN-1, self.fuse_x)
 		initialize_cstn(opt,self,opt.stdGP,last0=True)
 		# print(self.c_stn_x)
 		# for l in range(opt.stnN):
