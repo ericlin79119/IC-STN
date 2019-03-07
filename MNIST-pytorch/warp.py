@@ -4,6 +4,24 @@ import torch
 
 import util
 
+
+class WarpParameters(metaclass=SingletonInstance):
+	def __init__(self, opt):
+		refMtrx = torch.from_numpy(opt.refMtrx).cuda()
+		self.refMtrx = refMtrx.repeat(opt.batchSize, 1, 1)
+		
+		# warp the canonical coordinates
+		X, Y = np.meshgrid(np.linspace(-1, 1, opt.W), np.linspace(-1, 1, opt.H))
+		X, Y = X.flatten(), Y.flatten()
+		XYhom = np.stack([X, Y, np.ones_like(X)], axis=1).T
+		XYhom = np.tile(XYhom, [opt.batchSize, 1, 1]).astype(np.float32)
+		XYhom = torch.from_numpy(XYhom).cuda()
+		self.XYhom = XYhom
+		
+		self.O = torch.zeros(opt.batchSize, dtype=torch.float32).cuda()
+		self.I = torch.ones(opt.batchSize, dtype=torch.float32).cuda()
+
+
 # fit (affine) warp between two sets of points 
 def fit(Xsrc,Xdst):
 	ptsN = len(Xsrc)
@@ -33,8 +51,9 @@ def inverse(opt,p):
 
 # convert warp parameters to matrix
 def vec2mtrx(opt,p):
-	O = torch.zeros(opt.batchSize,dtype=torch.float32).cuda()
-	I = torch.ones(opt.batchSize,dtype=torch.float32).cuda()
+	warp_parameters = WarpParameters(opt)
+	O = warp_parameters.O
+	I = warp_parameters.I
 	if opt.warpType=="translation":
 		tx,ty = torch.unbind(p,dim=1)
 		pMtrx = torch.stack([torch.stack([I,O,tx],dim=-1),
@@ -71,16 +90,10 @@ def mtrx2vec(opt,pMtrx):
 
 # warp the image
 def transformImage(opt,image,pMtrx):
-	refMtrx = torch.from_numpy(opt.refMtrx).cuda()
-	refMtrx = refMtrx.repeat(opt.batchSize,1,1)
-	transMtrx = refMtrx.matmul(pMtrx)
-	# warp the canonical coordinates
-	X,Y = np.meshgrid(np.linspace(-1,1,opt.W),np.linspace(-1,1,opt.H))
-	X,Y = X.flatten(),Y.flatten()
-	XYhom = np.stack([X,Y,np.ones_like(X)],axis=1).T
-	XYhom = np.tile(XYhom,[opt.batchSize,1,1]).astype(np.float32)
-	XYhom = torch.from_numpy(XYhom).cuda()
-	XYwarpHom = transMtrx.matmul(XYhom)
+	warp_parameters = WarpParameters(opt)
+	transMtrx = warp_parameters.refMtrx.matmul(pMtrx)
+	XYwarpHom = transMtrx.matmul(warp_parameters.XYhom)
+
 	XwarpHom,YwarpHom,ZwarpHom = torch.unbind(XYwarpHom,dim=1)
 	Xwarp = (XwarpHom/(ZwarpHom+1e-8)).reshape(opt.batchSize,opt.H,opt.W)
 	Ywarp = (YwarpHom/(ZwarpHom+1e-8)).reshape(opt.batchSize,opt.H,opt.W)
