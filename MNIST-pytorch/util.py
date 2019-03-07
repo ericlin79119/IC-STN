@@ -62,3 +62,10 @@ class Visdom():
 		self.vis.image(var[0].clip(0,1),win="{0}_varinit".format(opt.model), opts={ "title": "{0} (TEST_var_init)".format(opt.model) })
 		self.vis.image(var[1].clip(0,1),win="{0}_varwarped".format(opt.model), opts={ "title": "{0} (TEST_var_warped)".format(opt.model) })
 
+class SingletonInstance(type):
+	_instance = None
+
+	def __call__(cls, *args, **kwargs):
+		if not cls._instance:
+			cls._instance = super(SingletonInstance, cls).__call__(*args, **kwargs)
+		return cls._instance
