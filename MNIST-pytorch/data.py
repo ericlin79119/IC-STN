@@ -81,7 +81,7 @@ def evalTest(opt,data,geometric,classifier):
 		# make training batch
 		image = data["image"][idx].cuda()
 		label = data["label"][idx].cuda()
-		image.data.unsqueeze_(dim=1)
+		image.unsqueeze_(dim=1)
 		# generate perturbation
 		pInit = genPerturbations(opt)
 		pInitMtrx = warp.vec2mtrx(opt,pInit)
