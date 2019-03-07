@@ -5,7 +5,7 @@ import torch
 import util
 
 
-class WarpParameters(metaclass=SingletonInstance):
+class WarpParameters(metaclass=util.SingletonInstance):
 	def __init__(self, opt):
 		refMtrx = torch.from_numpy(opt.refMtrx).cuda()
 		self.refMtrx = refMtrx.repeat(opt.batchSize, 1, 1)
